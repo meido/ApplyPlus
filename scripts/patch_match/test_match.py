@@ -1,5 +1,5 @@
 import diff_match_patch as dmp_module
-import patchParser as parse 
+import scripts.patch_apply.patchParser as parse 
 from enum import Enum
 import Levenshtein
 from pygments.lexers import CLexer, CppLexer, CSharpLexer, JavaLexer, get_lexer_for_filename
