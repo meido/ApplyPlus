@@ -2,7 +2,7 @@ import scripts.patch_apply.patchParser as parse
 import scripts.patch_match.test_match as match
 import scripts.patch_context.slice_and_parse as slice
 import diff_match_patch as dmp_module
-import re
+import re, os
 from scripts.enums import CONTEXT_DECISION, MatchStatus
 
 
@@ -38,10 +38,15 @@ def context_changes(sub_patch, expand=False):
     patch_file_path: string representing the path to a patch file
     """
 
-    file_name = sub_patch.getFileName()
+    file_path = os.path.join( os.getcwd(), sub_patch.getFileName() )
 
-    # TODO: update this to not be hardcoded
-    file_path = f"../msm-3.10{file_name}"
+    if not os.path.exists(file_path):
+        return ContextResult(
+            CONTEXT_DECISION.DONT_RUN.value,
+            "The file %s does not exist" % (file_path),
+            None,
+            False,
+        )
 
     file_slice = slice.SliceParser(file_path)
     file_slice_parsed = file_slice.slice_parse()
@@ -118,7 +123,7 @@ def context_changes(sub_patch, expand=False):
             output_message = (
                 f"For the context line difference in the patch file {context_diff.patch_line}"
                 f" and in the source file {context_diff.file_line} represents a function call on the"
-                f" RHS of an expression. Since this the value on the LHS of the expression may have "
+                f" RHS of an expression. Since the value on the LHS of the expression may have "
                 f" dependencies at other locations in the file, we recommend to not run this patch."
             )
 
@@ -135,7 +140,7 @@ def context_changes(sub_patch, expand=False):
         # we will continue with running the patch for this case
         if lhs_function_call_reg and lhs_function_call_reg.group() == context_diff.file_line:
             continue
-        
+
         # function call in return statement
         elif function_definition_reg and "return" in context_diff.file_line:
             continue
@@ -164,7 +169,7 @@ def context_changes(sub_patch, expand=False):
         ]
 
         if not unchanged_diff_list:
-            # since the change is neither an L-Value, R-Value, fuction declaration, 
+            # since the change is neither an L-Value, R-Value, fuction declaration,
             # or function call change, we will still continue to apply this patch
             # since the match ratio was above the Levinstein Ratio
             # TODO: Verifiy this is the intended behaviour
@@ -283,5 +288,5 @@ def context_changes(sub_patch, expand=False):
         comment_line = False
 
     return ContextResult(
-        CONTEXT_DECISION.RUN.value, "This Patch can be applied.", diff_file_patch, comment_line
+        CONTEXT_DECISION.RUN.value, "This patch can be applied.", diff_file_patch, comment_line
     )

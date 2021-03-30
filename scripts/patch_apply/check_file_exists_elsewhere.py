@@ -1,5 +1,8 @@
 import os
-import patchParser as parse
+import sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+import scripts.patch_apply.patchParser as parse
 from scripts.enums import SliceFields
 
 

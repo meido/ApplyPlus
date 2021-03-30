@@ -1,0 +1,11 @@
+--- a/patches/test.cpp	2021-03-19 14:30:57.350234443 -0400
++++ b/patches/test.cpp	2021-03-18 15:56:46.899609711 -0400
+@@ -36,7 +36,7 @@ int main( int argc, char ** argv ) {
+     printf( "String: %s\n", value.c_str() );
+     printf( "Location of the string: %p\n", value.c_str() );
+ 
+-    // Now, copy it into the second buffer.
++    // Now, copy it into another buffer.
+     element_t element;
+     element.max_length = sizeof(element.buffer);
+ 

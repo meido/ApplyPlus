@@ -1,25 +1,62 @@
+#!/usr/bin/env python3
+
 import argparse
 import sys
 import os
+import copy
+import time
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-import patchParser as parse
+import scripts.patch_apply.patchParser as parse
 
 # import check_file_exists_elsewhere as fileCheck
 import scripts.patch_match.test_match as tm
-import os
-import time
 import scripts.patch_context.context_changes as cc
-import check_file_exists_elsewhere as check_exist
+import scripts.patch_apply.check_file_exists_elsewhere as check_exist
 from scripts.enums import MatchStatus, natureOfChange, CONTEXT_DECISION
 
+def findGitPrefix(path):
+    prefix=''
+    resolved=False
+
+    while True:
+        if path == os.path.dirname(path) and not resolved:
+            path = os.path.realpath(path)
+            resolved = True
+
+        if os.path.isdir(path):
+            if os.path.isdir(os.path.join(path, ".git")):
+                if os.path.isfile(os.path.join(path, ".git", "config")):
+                    return prefix
+
+        if path == os.path.dirname(path):
+            break
+
+        if resolved:
+            prefix=os.path.join(prefix, os.path.basename(path))
+        path=os.path.dirname(path)
+    return ''
 
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--reverse",
         help="Apply a patch in reverse files and/or to the index.",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        help="Increase debugging information",
+        default=0,
+        action="count",
+    )
+
+    parser.add_argument(
+        "--dry-run",
+        help="Print statistics but don't actually apply the patch.",
         action="store_true",
     )
 
@@ -31,13 +68,13 @@ def get_args():
     return args
 
 
-def apply_reverse(pathToPatch):
-    print("Apply in reverse called")
+def apply_reverse(pathToPatch, **kwargs):
+    print("Apply in reverse called.  Unimplemented")
 
 
 def calculate_percentage(diff_lines, line_count, is_removed=False):
     if line_count == 0:
-        percentage = 100
+        percentage = 100.0
     else:
         difference_amount = 0
         for line_diff_obj in diff_lines:
@@ -176,6 +213,7 @@ def match_found_helper(
                         subpatch_name,
                         diff_obj.match_start_line,
                         context_decision_msg,
+                        patch
                     )
                 )
 
@@ -186,20 +224,24 @@ def match_found_helper(
                 subpatch_name,
                 diff_obj.match_start_line,
                 context_decision_msg,
+                patch,
             )
         )
 
 
-def apply(pathToPatch):
+def apply(pathToPatch, **kwargs):
     patch_file = parse.PatchFile(pathToPatch)
-    patch_file.runPatch()
+    patch_file.runPatch(reverse=kwargs['reverse'], dry_run=kwargs['dry_run'])
     if patch_file.runSuccess == True:
         print("Successfully applied")
         return 0
     else:
-        print("Patch failed while it was run with git apply with error:")
-        error_message = patch_file.runResult.decode("utf-8")
-        print(error_message)
+        error_message = patch_file.runResult
+        if kwargs['verbose'] > 0:
+            print("Patch failed while it was run with git apply with error:")
+            print(error_message)
+        else:
+            print("Patch failed to apply with git apply.")
 
         error_message_lines = error_message.split("\n")
         already_exists = set()
@@ -207,13 +249,20 @@ def apply(pathToPatch):
         does_not_apply = set()
 
         for line in error_message_lines:
-            split_line = line.split(":")
-            if "patch does not apply" in line:
-                does_not_apply.add(split_line[1].strip())
-            elif "already exists" in line:
-                already_exists.add(split_line[1].strip())
-            elif "No such file" in line:
-                file_not_found.add(split_line[1].strip())
+            split_line = [s.strip() for s in line.split(":")]
+            if line[0:2] == "  ":
+                pass
+            elif split_line[0] == "error":
+                if split_line[2] == "patch does not apply":
+                    does_not_apply.add(split_line[1])
+                elif split_line[2] == "already exists":
+                    already_exists.add(split_line[1])
+                elif split_line[2] == "No such file or directory":
+                    file_not_found.add(split_line[1])
+                elif split_line[2] == 'skipped':
+                    # GIT does not translate the file name in this case.
+                    filename = os.path.join( findGitPrefix(split_line[1]), split_line[1] )
+                    does_not_apply.add(filename)
 
         patch_file.getPatch()
 
@@ -229,29 +278,41 @@ def apply(pathToPatch):
         no_match_patches = []
         applied_by_git_apply = []
         # not_tried_subpatches = []
-        see_patches = input(
-            "We have found {} subpatches in the patch file. Would you like to see them? [Y/n] ".format(
-                len(patch_file.patches)
-            )
-        )
-        see_patches = see_patches.upper() == "Y"
-        for patch in patch_file.patches:
-            fileName = patch._fileName[1:]
-            if see_patches:
-                print(":".join([fileName, str(-patch._lineschanged[0])]))
-                print(patch)
-                print(
-                    "----------------------------------------------------------------------"
+        if not kwargs['dry_run']:
+            see_patches = input(
+                "We have found {} subpatches in the patch file. Would you like to see them? [Y/n] ".format(
+                    len(patch_file.patches)
                 )
-            subpatch_name = ":".join([fileName, str(-patch._lineschanged[0])])
-            if fileName in file_not_found:
+            )
+            see_patches = see_patches.upper() == "Y"
+        else:
+            see_patches = False
+
+        for patch in patch_file.patches:
+            fileName = patch.getFileName()
+
+            # GIT has the behaviour where it prepends elements to the
+            # path in order to get up to the root of the GIT
+            # repository.  This means that the output of git apply is
+            # not going to have the same file names as the patch file
+            # itself.  We need to fix up the name we pulled from the
+            # file so it matches the name returned by GIT.
+            gitFileName = os.path.join( findGitPrefix(fileName), fileName )
+
+            if see_patches:
+                print("\n" + ":".join([fileName, str(patch._lineschanged[0])]))
+                print(patch)
+
+            subpatch_name = ":".join([fileName, str(patch._lineschanged[0])])
+
+            if gitFileName in file_not_found:
                 correct_loc = check_exist.checkFileExistsElsewhere(patch)
                 if correct_loc != None:
                     does_not_apply.add(correct_loc)
                     file_not_found.remove(fileName)
                     fileName = correct_loc
                     patch._fileName = "/" + correct_loc
-            elif fileName in does_not_apply:
+            elif gitFileName in does_not_apply:
                 # [1:] is used to remove the leading slash
 
                 # skip_current_patch = True
@@ -291,48 +352,55 @@ def apply(pathToPatch):
                     else:
                         subpatches_without_matched_code.append(subpatch_name)
                         no_match_patches.append(patch)
-            elif fileName not in already_exists:
+            elif gitFileName not in already_exists:
                 applied_by_git_apply.append(subpatch_name)
 
-        print("----------------------------------------------------------------------")
-        print("----------------------------------------------------------------------")
         if len(successful_subpatches) > 0:
+            print( "-" * 70 )
             print(
                 "{} subpatches can be applied successfully:\n".format(
                     len(successful_subpatches)
                 )
             )
-            start_apply = input(
-                "Would you like to see these patches and try applying them? [Y/n] "
-            )
-            start_apply = start_apply.upper() == "Y"
+            if not kwargs['dry_run']:
+                start_apply = input(
+                    "Would you like to see these patches and try applying them? [Y/n] "
+                )
+                start_apply = start_apply.upper() == "Y"
+            else:
+                start_apply = True
+
             if start_apply:
                 for patch in successful_subpatches:
-                    print(patch[1])
-                    print(patch[0])
-                    print(
-                        "----------------------------------------------------------------------\n"
-                    )
-                    apply_subpatch_input = input(
-                        "The above subpatch can be applied successfully. Would you like to apply? [Y/n] "
-                    )
-                    apply_subpatch_input = apply_subpatch_input.upper() == "Y"
+                    if kwargs['verbose'] >= 1:
+                        print()
+                        print(patch[1])
+                        print(patch[0])
+
+                    if not kwargs['dry_run']:
+                        apply_subpatch_input = input(
+                            "The above subpatch can be applied successfully. Would you like to apply? [Y/n] "
+                        )
+                        apply_subpatch_input = apply_subpatch_input.upper() == "Y"
+                    else:
+                        apply_subpatch_input = True
+
                     success = False
                     if apply_subpatch_input:
-                        fileName = patch[0]._fileName[1:]
+                        fileName = patch[0]._fileName
                         patchObj = patch[0]
-                        success = patchObj.Apply(fileName)
+                        success = patchObj.Apply(fileName, dry_run=kwargs['dry_run'])
                     if success:
-                        print("Successfully applied!")
+                        if kwargs['dry_run']:
+                            print( "%s would have been successfully applied (dry run)." % patch[1] )
+                        else:
+                            print( "%s successfully applied!" % patch[1] )
                     else:
-                        print("Ignored")
-                    time.sleep(1)
-                    print(
-                        "----------------------------------------------------------------------\n"
-                    )
+                        print("%s Ignored" % patch[1] )
 
         if len(failed_subpatches_with_matched_code) > 0:
             # failed_subpatches_with_matched_code.sort()
+            print( '\n' + '-' * 70 )
             print(
                 "Subpatches that we can't automatically apply, but think we have found where the patch should be applied:\n"
             )
@@ -342,57 +410,43 @@ def apply(pathToPatch):
                 sp_name,
                 line_number,
                 context_decision_msg,
+                patch
             ) in failed_subpatches_with_matched_code:
                 add_percent, removed_percent, context_percent = percentages
                 print("{} - Line Number: {}".format(sp_name, line_number))
-                print("Percentage of Added Lines Applied: {}%".format(add_percent))
-                print(
-                    "Percentage of Removed Lines Applied: {}%".format(removed_percent)
-                )
-                print(
-                    "Percentage of Context Lines Found: {}%\n".format(context_percent)
-                )
-                print(
-                    f"Context related reason for not applying the patch: {context_decision_msg}\n"
-                )
+                if kwargs['verbose'] >= 2:
+                    print( patch )
+                print("  Percentage of Added Lines Applied:   {:>6.2f}%".format(add_percent))
+                print("  Percentage of Removed Lines Applied: {:>6.2f}%".format(removed_percent))
+                print("  Percentage of Context Lines Found:   {:>6.2f}%".format(context_percent))
+                print(f"  Context related reason for not applying the patch: {context_decision_msg}")
 
             print(
-                "Note that if all added lines are added and removed lines are removed, that means that the context may have changed in ways that affect the code"
-            )
-            print(
-                "----------------------------------------------------------------------"
+                "\nNote that if all added lines are added and removed lines are removed, that means that the context may have changed in ways that affect the code"
             )
 
         if len(applied_by_git_apply) > 0:
+            print("\n" + "-" * 70 )
             print("Subpatches that were applied by git apply:")
             print("\n".join(applied_by_git_apply))
-            print(
-                "----------------------------------------------------------------------"
-            )
 
         if len(already_applied_subpatches) > 0:
+            print("\n" + "-" * 70 )
             print("Subpatches that were already applied:")
             print("\n".join(already_applied_subpatches))
-            print(
-                "----------------------------------------------------------------------"
-            )
 
         if len(subpatches_without_matched_code) > 0:
+            print("\n" + "-" * 70 )
             print(
                 "Subpatches that did not apply, and we could not find where the patch should be applied:"
             )
             print("\n".join(subpatches_without_matched_code))
 
-            print(
-                "----------------------------------------------------------------------"
-            )
-
         if len(file_not_found) > 0:
+            print("\n" + '-' * 70 )
             print("The following files could not be found:")
             print("\n".join(file_not_found))
-            print(
-                "----------------------------------------------------------------------"
-            )
+
         # if len(not_tried_subpatches) > 0:
         #     print("\nSubpatches that we did not try and apply:")
         #     print("\n".join(not_tried_subpatches))
@@ -400,13 +454,31 @@ def apply(pathToPatch):
         return 1
 
 
-def main():
-    if args.reverse:
-        apply_reverse(args.pathToPatch)
+def main( **kwargs ):
+    # If it's a directory full of patches, we are going to run through each file in the directory.
+    if not os.path.exists(kwargs['pathToPatch']):
+        print( "Invalid path or filename: %s" % kwargs['pathToPatch'] )
+        return 1
+
+    if os.path.isdir(kwargs['pathToPatch']):
+        arguments = copy.copy(kwargs)
+        for file in os.listdir(kwargs['pathToPatch']):
+            filename = os.fsdecode(file)
+            if filename.endswith("~"):
+                continue
+
+            arguments['pathToPatch']=os.path.join(kwargs['pathToPatch'], filename)
+            print( "=" * 70 )
+            print( "Examining patch: %s\n" % arguments['pathToPatch'] )
+            apply( **arguments )
+            print( "\n" )
+    elif os.path.isfile:
+        apply( **kwargs )
     else:
-        apply(args.pathToPatch)
+        print( "Not a regular file: %s" % args.pathToPatch )
+        return 1
 
 
 if __name__ == "__main__":
     args = get_args()
-    main()
+    main( **vars(args) )

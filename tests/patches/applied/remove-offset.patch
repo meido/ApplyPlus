@@ -1,0 +1,13 @@
+--- a/patches/switch.cpp	2021-03-29 16:38:07.967406354 -0400
++++ b/patches/switch.cpp	2021-03-29 16:35:10.022945011 -0400
+@@ -20,10 +16,6 @@ int print_switch( option_t option ) {
+         printf( "Unknown option: %d\n", option );
+         break;
+     }
+-
+-    if (option < OPT_MAX) {
+-        printf( "Function finished.  Option printed.\n" );
+-    }
+     return 0;
+ }
+ 

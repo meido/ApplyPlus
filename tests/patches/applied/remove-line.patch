@@ -1,0 +1,9 @@
+--- a/patches/test.cpp	2021-03-19 11:07:29.502586762 -0400
++++ b/patches/test.cpp	2021-03-18 15:56:46.899609711 -0400
+@@ -44,6 +44,5 @@ int main( int argc, char ** argv ) {
+ 
+     printf( "String: %s\n", element.buffer );
+ 
+-    printf( "All done!\n" );
+     return 0;
+ }

@@ -1,0 +1,10 @@
+--- a/patches/test.cpp	2021-03-19 17:01:19.245623482 -0400
++++ b/patches/test.cpp	2021-03-19 17:01:51.053705946 -0400
+@@ -44,6 +44,6 @@ int main( int argc, char ** argv ) {
+ 
+     printf( "String: %s\n", element.buffer );
+     
+-    memset( element.buffer, 0, sizeof(element.buffer) )
++    memset( element.buffer, 0, element.max_length )
+     return 0;
+ }

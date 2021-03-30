@@ -1,0 +1,15 @@
+--- a/patches/test.cpp	2021-03-24 21:14:18.228875784 -0400
++++ b/patches/test.cpp	2021-03-29 16:19:37.128526459 -0400
+@@ -9,9 +9,9 @@ typedef struct element_t {
+ 
+ void copy_to_string( element_t &dst, const char * src ) {
+     dst.len = strncpy( dst.buffer, src, dst.max_length );
+-    if( dst.length >= dst.max_length )
+-        dst.length = dst.max_length - 1;
+-    dst.buffer[dst.length] = '\0';
++    if( dst.len >= dst.max_length )
++        dst.len = dst.max_length - 1;
++    dst.buffer[dst.len] = '\0';
+     return;
+ }
+ 

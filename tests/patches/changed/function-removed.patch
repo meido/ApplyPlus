@@ -1,0 +1,10 @@
+--- a/patches/test.cpp	2021-03-19 16:53:54.456470321 -0400
++++ b/patches/test.cpp	2021-03-19 16:54:15.244524215 -0400
+@@ -10,7 +10,6 @@ typedef struct element_t {
+ void show_length( element_t &dst ) {
+     printf( "The length of the string is %z.\n", dst.length );
+     printf( "The max length is %z.\n", dst.max_length );
+-    printf( "A spare line!\n" );
+     return;
+ }
+ 

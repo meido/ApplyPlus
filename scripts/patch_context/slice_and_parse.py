@@ -3,6 +3,11 @@ import tempfile as tfile
 import re
 from enum import Enum
 
+src_slice_path = os.path.dirname(os.path.abspath(__file__))
+if sys.platform.startswith("darwin"):
+    src_slice_path += "/srcSliceBuilds/macOS/srcslice-mac"
+else:
+    src_slice_path += "/srcSliceBuilds/ubuntu/srcslice-ubuntu"
 
 class SliceParser:
     def __init__(self, file):
@@ -21,11 +26,6 @@ class SliceParser:
         try:
             with os.fdopen(fd, "w") as tmpo:
                 tmpo.write(str(out, "utf-8"))
-
-            if sys.platform.startswith("darwin"):
-                src_slice_path = "../vulnerableforks/scripts/patch_context/srcSliceBuilds/macOS/srcslice-mac"
-            else:
-                src_slice_path = "../vulnerableforks/scripts/patch_context/srcSliceBuilds/ubuntu/srcslice-ubuntu"
 
             p = subprocess.Popen(
                 [
