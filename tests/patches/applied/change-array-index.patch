@@ -1,0 +1,11 @@
+--- a/patches/test.cpp	2021-03-19 14:31:23.350301845 -0400
++++ b/patches/test.cpp	2021-03-18 15:56:46.899609711 -0400
+@@ -31,7 +31,7 @@ int main( int argc, char ** argv ) {
+         return 1;
+     }
+ 
+-    std::string value = MakeString( argv[0] );
++    std::string value = MakeString( argv[1] );
+ 
+     printf( "String: %s\n", value.c_str() );
+     printf( "Location of the string: %p\n", value.c_str() );

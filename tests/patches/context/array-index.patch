@@ -1,0 +1,11 @@
+--- a/patches/test.cpp	2021-03-18 15:56:46.899609711 -0400
++++ b/patches/test.cpp	2021-03-19 14:52:34.089596291 -0400
+@@ -33,7 +33,7 @@ int main( int argc, char ** argv ) {
+ 
+     std::string value = MakeString( argv[0] );
+ 
+-    printf( "String: %s\n", value.c_str() );
++    printf( "Copied String: %s\n", value.c_str() );
+     printf( "Location of the string: %p\n", value.c_str() );
+ 
+     // Now, copy it into another buffer.

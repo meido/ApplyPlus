@@ -1,0 +1,24 @@
+--- a/patches/test.cpp	2021-03-23 09:42:37.597304225 -0400
++++ b/patches/test.cpp	2021-03-23 10:51:38.420038526 -0400
+@@ -4,7 +4,7 @@
+ typedef struct element_t {
+     size_t length;
+     size_t max_length;
+-    char buffer[80];
++    char buffer[128];
+ } element_t;
+ 
+ void copy_to_string( element_t &dst, const char * src ) {
+@@ -16,9 +16,9 @@ void copy_to_string( element_t &dst, con
+ }
+ 
+ std::string MakeString( const char * str ) {
+-    char localString[256];
+-    memset( localString, 0, 256 );
+-    snprintf( localString, 256, "%s", str );
++    char localString[128];
++    memset( localString, 0, sizeof(localString) );
++    snprintf( localString, sizeof(localString), "%s", str );
+ 
+     printf( "Location of the string: %p\n", localString );
+ 

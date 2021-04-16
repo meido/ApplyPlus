@@ -1,0 +1,10 @@
+--- a/patches/file-does-not-exist.cpp	2021-03-18 15:56:46.899609711 -0400
++++ b/patches/file-does-not-exist.cpp	2021-03-18 15:57:54.767785656 -0400
+@@ -19,7 +19,6 @@ std::string MakeString( const char * str
+     char localString[256];
+     memset( localString, 0, 256 );
+     snprintf( localString, 256, "%s", str );
+-
+     printf( "Location of the string: %p\n", localString );
+ 
+     return localString;

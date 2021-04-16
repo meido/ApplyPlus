@@ -1,0 +1,14 @@
+--- a/patches/long-error.cpp	2021-03-29 17:21:30.674154243 -0400
++++ b/patches/long-error.cpp	2021-03-29 17:19:03.913773895 -0400
+@@ -61,11 +51,6 @@ int print_switch( option_t option, int v
+         value += 100;
+         break;
+     }
+-
+-    if (value > 7) {
+-        SHOW_ERROR( "print_switch (): Bad option" );
+-        return 1;
+-    }
+     return 0;
+ }
+ 

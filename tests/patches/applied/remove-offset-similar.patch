@@ -1,0 +1,14 @@
+--- a/patches/switch.cpp	2021-03-29 16:48:17.760987458 -0400
++++ b/patches/switch.cpp	2021-03-29 16:47:25.396851681 -0400
+@@ -37,11 +37,6 @@ int print_switch( option_t option ) {
+         printf( "Unknown option: %d\n", option );
+         break;
+     }
+-
+-    if( option < 0 ) {
+-        printf( "Bad index %d.", option );
+-        return -1;
+-    }
+     return 0;
+ }
+ 

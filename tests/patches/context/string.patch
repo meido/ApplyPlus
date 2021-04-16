@@ -1,0 +1,11 @@
+--- a/patches/test.cpp	2021-03-18 15:56:46.899609711 -0400
++++ b/patches/test.cpp	2021-03-19 14:53:17.425708644 -0400
+@@ -37,7 +37,7 @@ int main( int argc, char ** argv ) {
+     printf( "Location of the new string: %p\n", value.c_str() );
+ 
+     // Now, copy it into another buffer.
+-    element_t element;
++    struct element_t element;
+     element.max_length = sizeof(element.buffer);
+ 
+     copy_to_string( element, value.c_str() );

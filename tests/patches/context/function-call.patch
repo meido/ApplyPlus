@@ -1,0 +1,11 @@
+--- a/patches/test.cpp	2021-03-18 15:56:46.899609711 -0400
++++ b/patches/test.cpp	2021-03-19 16:46:58.963393130 -0400
+@@ -20,7 +20,7 @@ std::string MakeString( const char * str
+     memset_s( localString, 0, 256 );
+     snprintf( localString, 256, "%s", str );
+ 
+-    printf( "Location of the string: %p\n", localString );
++    printf( "Location of the local string: %p\n", localString );
+ 
+     return localString;
+ }

@@ -1,5 +1,6 @@
 from enum import Enum
 import re
+import os
 import subprocess
 from scripts.enums import natureOfChange
 
@@ -58,12 +59,39 @@ class Patch:
         """
         Method used to add lines changed info for a patch
         """
-        pair = rawData.split("@@")[1].split(" ")[1:3]
-        self._lineschanged[0] = int(pair[0].split(",")[0])
-        self._lineschanged[1] = int(pair[0].split(",")[1])
-        self._lineschanged[2] = int(pair[1].split(",")[0])
-        self._lineschanged[3] = int(pair[1].split(",")[1])
-        return
+        match = re.fullmatch(r'@@ -([0-9]+),([0-9]+) *\+([0-9]+),([0-9]+) @@.*', rawData)
+        if match is not None:
+            self._lineschanged[0] = int(match.group(1))
+            self._lineschanged[1] = int(match.group(2))
+            self._lineschanged[2] = int(match.group(3))
+            self._lineschanged[3] = int(match.group(4))
+            return
+
+        match = re.fullmatch(r'@@ -([0-9]+) *\+([0-9]+),([0-9]+) @@.*', rawData)
+        if match is not None:
+            self._lineschanged[0] = int(match.group(1))
+            self._lineschanged[1] = 1
+            self._lineschanged[2] = int(match.group(2))
+            self._lineschanged[3] = int(match.group(3))
+            return
+
+        match = re.fullmatch(r'@@ -([0-9]+),([0-9]+) *\+([0-9]+) @@.*', rawData)
+        if match is not None:
+            self._lineschanged[0] = int(match.group(1))
+            self._lineschanged[1] = int(match.group(2))
+            self._lineschanged[2] = int(match.group(3))
+            self._lineschanged[3] = 1
+            return
+
+        match = re.fullmatch(r'@@ -([0-9]+) *\+([0-9]+) @@.*', rawData)
+        if match is not None:
+            self._lineschanged[0] = int(match.group(1))
+            self._lineschanged[1] = 1
+            self._lineschanged[2] = int(match.group(2))
+            self._lineschanged[3] = 1
+            return
+
+        raise ValueError( "Don't know how to handle context line %s" % rawData)
 
     def getLinesChanged(self):
         """
@@ -78,15 +106,27 @@ class Patch:
         """ Private helper method to return raw string"""
         return str(string)
 
-    def canApply(self, applyTo):
+    def canApply(self, applyTo=None):
         """
         Returns True if this patch can be applied, false otherwise
         """
-        orgPatch = open(applyTo).readlines()
-        orgPatch = [
-            s.strip("\n").encode("ascii", "ignore").decode("unicode_escape", "ignore")
-            for s in orgPatch
-        ]
+
+        if applyTo is None:
+            applyTo = os.path.join( os.getcwd(), self.getFileName())
+
+        if not os.path.isfile(applyTo):
+            return False
+
+        orgPatch = []
+        with open(applyTo, "r", encoding="utf-8") as srcfile:
+            while True:
+                line = srcfile.readline()
+                if not line:
+                    break
+
+                line = line.strip("\n")
+                orgPatch.append(line)
+
         for checkLines in range(len(orgPatch)):
             # Check if first line of patch exists
             if orgPatch[checkLines].strip() == self._to_raw(self._lines[1][1]).strip():
@@ -98,13 +138,11 @@ class Patch:
                     original_patch_offset = (
                         checkLines + ite - 1 - blank_line_offset_file - added_offset
                     )
+
                     if original_patch_offset >= len(orgPatch):
                         patch_found_flag = False
                         break
-                    if (
-                        self._lines[ite][0] == natureOfChange.ADDED
-                        and orgPatch[original_patch_offset].strip()
-                    ):
+                    if self._lines[ite][0] == natureOfChange.ADDED:
                         if (
                             orgPatch[original_patch_offset].strip()
                             == self._lines[ite][1].strip()
@@ -129,22 +167,29 @@ class Patch:
                             break
                     ite += 1
                 if patch_found_flag:
-                    return True
+                    # If they are all context lines now, this patch
+                    # has already been applied and shouldn't be
+                    # applied again.
+                    for ite_line in self._lines:
+                        if ite_line[0] != natureOfChange.CONTEXT:
+                            return True
+                    return False
         return False
 
-    def Apply(self, applyTo):
+    def Apply(self, applyTo, dry_run=False):
         """
         If patch can be applied, this method
         applies it.
         """
         if self.canApply(applyTo):
-            orgPatch = open(applyTo).readlines()
-            orgPatch = [
-                s.strip("\n")
-                .encode("ascii", "ignore")
-                .decode("unicode_escape", "ignore")
-                for s in orgPatch
-            ]
+            orgPatch = []
+            with open(applyTo, "r", encoding="utf-8") as srcfile:
+                while True:
+                    line = srcfile.readline()
+                    if not line:
+                        break
+                    orgPatch.append(line.strip("\n"))
+
             for checkLines in range(len(orgPatch)):
                 # Check if first line of patch exists
                 if (
@@ -216,11 +261,13 @@ class Patch:
                                 else:
                                     ite2 += 1
                                     ite3 += 1
-                        writeobj = open(applyTo, "w")
-                        for i in orgPatch:
-                            i = i.replace("\n", "\\n")
-                            writeobj.write(i + "\n")
-                        writeobj.close()
+
+                        if not dry_run:
+                            writeobj = open(applyTo, "w")
+                            for i in orgPatch:
+                                i = i.replace("\n", "\\n")
+                                writeobj.write(i + "\n")
+                            writeobj.close()
                         return True
 
         return False
@@ -240,24 +287,34 @@ class PatchFile:
         self.runSuccess = False
         self.runResult = "Patch has not been run yet"
 
-    def runPatch(self, reverse=False):
+    def runPatch(self, reverse=False, dry_run=False):
         """
         Returns an empty string if patch successfully runs
         else returns the exact error message as a string
 
         If revert=True arg is provided, git apply --reverse is run.
         """
+        cmdline = ['git', 'apply']
         if reverse == True:
-            result = subprocess.run(
-                ["git", "apply", "--reverse", self.pathToFile], capture_output=True
-            )
-        else:
-            result = subprocess.run(
-                ["git", "apply", self.pathToFile], capture_output=True
-            )
+            cmdline.append( '--reverse' )
+        if dry_run == True:
+            cmdline.append( '--check' )
+        cmdline.append( '--verbose' )
+        cmdline.append( self.pathToFile )
+
+        result = subprocess.run( cmdline, capture_output=True, text=True )
         if result.returncode == 0:
-            self.runSuccess = True
-            self.runResult = "Patch ran successfully"
+            # Need to make sure that GIT didn't skip any patches.
+            if re.search( '^Skipped patch', result.stderr ) is None:
+                self.runSuccess = True
+                self.runResult = "Patch ran successfully"
+            else:
+                self.runSuccess = False
+                self.runResult = ''
+                for line in result.stderr.splitlines():
+                    m = re.search(r"Skipped patch '([^']*)'.", line)
+                    if m is not None:
+                        self.runResult += "error:%s:skipped\n" % m.group(1)
         else:
             self.runResult = result.stderr
 
@@ -268,35 +325,49 @@ class PatchFile:
         each representing one patch
         """
 
-        fileObj = open(self.pathToFile)
-        file = fileObj.read().rstrip()
-        file = file.split("\n")
+        with open(self.pathToFile) as fileObj:
+            file = fileObj.read().rstrip()
+            file = file.split("\n")
 
-        patchObj = Patch("temp")
+        patchObj = None
 
         for line in file:
-            # print(line)
+            # print( "Line: %s" % line)
             # print("________________")
 
-            if (
-                line[0:3] == "+++"
-                or line[0:3] == "---"
-                or line[0:5] == "index"
-                or line == "\n"
-            ):
-                pass
-
-            elif line[0:10] == "diff --git":
-
-                if (
-                    patchObj.getFileName() != "temp"
-                ):  # To avoid pushing an empty list in 1st iteration
+            # This is a HACK.  In general, we should probably not be
+            # modifying the file name in the patch.  In this case
+            # though, GIT always adds a "b/" to the name of the file
+            # being modified.  It also turns out that the unit tests
+            # do this (not that we want to have specific code just for
+            # the unit tests).
+            if line[0:6] == "+++ b/":
+                if patchObj is not None:
+                    assert( len(patchObj.getLines()) > 0)
                     self.patches.append(patchObj)
-                filename = line[11:].split()[0][1:]
-                patchObj = Patch(filename)
 
-            elif line[0:2] == "@@":
+                if patchObj is None:
+                    filename = line.split()[1][2:]
+                    patchObj = Patch(filename)
+
+            elif line[0:3] == '+++':
+                if patchObj is not None:
+                    assert( len(patchObj.getLines()) > 0)
+                    self.patches.append(patchObj)
+
+                if patchObj is None:
+                    filename = "./" + line.split()[1]
+                    patchObj = Patch(filename)
+
+            elif line[0:3] == '---':
+                if patchObj is not None:
+                    self.patches.append(patchObj)
+                    patchObj = None
+
+            elif line[0:3] == "@@ ":
                 contextline = line[2:].split(" @@ ")[-1]
+                assert( patchObj is not None )
+
                 if len(patchObj.getLines()) != 0:
                     filename = patchObj.getFileName()
                     self.patches.append(patchObj)
@@ -310,15 +381,23 @@ class PatchFile:
                     contextline,
                 )
 
-            elif line[0] == "-":
+            elif line[0:1] == "-" and patchObj is not None:
                 contextline = line[1:]
                 patchObj.addLines(natureOfChange.REMOVED, contextline)
 
-            elif line[0] == "+":
+            elif line[0:1] == "+" and patchObj is not None:
                 contextline = line[1:]
                 patchObj.addLines(natureOfChange.ADDED, contextline)
 
+            elif line[0:1] == ' ' and patchObj is not None:
+                contextline = line[1:]
+                patchObj.addLines(natureOfChange.CONTEXT, contextline)
+
             else:
-                patchObj.addLines(natureOfChange.CONTEXT, line)
+                # A patch can have lots of lines in it that are added
+                # by tools like GIT.  These lines have no particular
+                # format, other than the fact that they are not within
+                # hunks.
+                pass
 
         self.patches.append(patchObj)
