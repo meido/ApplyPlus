@@ -1,0 +1,10 @@
+--- a/patches/test.cpp	2021-03-18 15:56:46.899609711 -0400
++++ b/patches/test.cpp	2021-03-19 10:29:57.808749453 -0400
+@@ -12,6 +12,7 @@ void copy_to_string( element_t &dst, con
+     if( dst.length >= dst.max_length )
+         dst.length = dst.max_length - 1;
+     dst.buffer[dst.length] = '\0';
++
+     return;
+ }
+ 

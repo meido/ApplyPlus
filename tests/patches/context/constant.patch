@@ -1,0 +1,11 @@
+--- a/patches/test.cpp	2021-03-18 15:56:46.899609711 -0400
++++ b/patches/test.cpp	2021-03-19 16:44:49.035056279 -0400
+@@ -18,7 +18,7 @@ void copy_to_string( element_t &dst, con
+ std::string MakeString( const char * str ) {
+     char localString[256];
+     memset( localString, 0, 200 );
+-    snprintf( localString, 256, "%s", str );
++    snprintf( localString, sizeof(localString), "%s", str );
+ 
+     printf( "Location of the string: %p\n", localString );
+ 

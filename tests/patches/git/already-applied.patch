@@ -1,0 +1,30 @@
+diff --git a/tests/patches/test.cpp b/tests/patches/test.cpp
+index ecae96d..c4650d6 100644
+--- a/tests/patches/test.cpp
++++ b/tests/patches/test.cpp
+@@ -21,7 +21,7 @@ std::string MakeString( const char * str ) {
+     snprintf( localString, 256, "%s", str );
+ 
+     printf( "Location of the string: %p\n", localString );
+-    
++
+     return localString;
+ }
+ 
+@@ -30,7 +30,7 @@ int main( int argc, char ** argv ) {
+         printf( "This isn't going to work.  I need an argument!\n" );
+         return 1;
+     }
+-    
++
+     std::string value = MakeString( argv[1] );
+ 
+     printf( "String: %s\n", value.c_str() );
+@@ -43,6 +43,6 @@ int main( int argc, char ** argv ) {
+     copy_to_string( element, value.c_str() );
+ 
+     printf( "String: %s\n", element.buffer );
+-    
++
+     return 0;
+ }

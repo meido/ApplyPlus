@@ -1,0 +1,29 @@
+From 1234567890abcdef Mon Mar 22 00:00:00 2021
+From: Test User <testuser@example.com>
+Date: Mon, 22 Mar 2021 00:00:00 -0100
+Subject: [PATCH] Increase buffer length for element_t structure
+
+Increases the buffer length for the element_t code.
+
+Test: None
+Bug: 123456789
+Merged-In: 1234567890abcdef
+Change-Id: 1234567890abcdef
+(cherry picked from commit 1234567890abcdef)
+---
+ patches/test.cpp   | 2 +-
+
+diff --git a/patches/test.cpp b/patches/test.cpp
+index abcdef..abcdef 100644
+--- a/patches/test.cpp	2021-03-18 15:56:46.899609711 -0400
++++ b/patches/test.cpp	2021-03-23 09:31:04.695507829 -0400
+@@ -4,7 +4,7 @@
+ typedef struct element_t {
+     size_t length;
+     size_t max_length;
+-    char buffer[80];
++    char buffer[128];
+ } element_t;
+ 
+ void copy_to_string( element_t &dst, const char * src ) {
+2.20.1.5.fancypatch-maker
