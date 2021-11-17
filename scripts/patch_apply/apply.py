@@ -5,6 +5,7 @@ import sys
 import os
 import copy
 import time
+import re
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
@@ -249,10 +250,16 @@ def apply(pathToPatch, **kwargs):
         does_not_apply = set()
 
         for line in error_message_lines:
+            print(line)
             split_line = [s.strip() for s in line.split(":")]
             if line[0:2] == "  ":
                 pass
             elif split_line[0] == "error":
+                if split_line[1].startswith("corrupt patch"):
+                    line_num = re.findall(r'\d+', split_line[1])
+                    print("The patch is corrupted at line %s, stop processing..." % line_num[0])
+                    return 1
+
                 if split_line[2] == "patch does not apply":
                     does_not_apply.add(split_line[1])
                 elif split_line[2] == "already exists":
