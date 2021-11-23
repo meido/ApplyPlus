@@ -14,7 +14,7 @@ import scripts.patch_apply.patchParser as parse
 import scripts.patch_match.test_match as tm
 import scripts.patch_context.context_changes as cc
 import scripts.patch_apply.check_file_exists_elsewhere as check_exist
-from scripts.enums import MatchStatus, natureOfChange, CONTEXT_DECISION
+from scripts.enums import MatchStatus, natureOfChange, CONTEXT_DECISION, precheckStatus
 
 def findGitPrefix(path):
     prefix=''
@@ -130,7 +130,7 @@ def match_found_helper(
         removed_line_applied_percentage,
         context_line_match_percentage,
     ]
-
+    
     # Exact Patch Has Already Been Applied
     if (
         len(diff_obj.context_diffs) == 0
@@ -203,7 +203,7 @@ def match_found_helper(
 
             old_patch_lines = patch._lines
             patch._lines = new_patch_lines
-            if patch.canApply(fileName):
+            if patch.canApply(fileName) == precheckStatus.CAN_APPLY: # TODO: is it safe here?
                 successful_subpatches.append([patch, subpatch_name])
             else:
                 # print("Issue with current assumption in terms of what patches can be applied")
@@ -235,7 +235,7 @@ def apply(pathToPatch, **kwargs):
     if patch_file.runSuccess == True:
         print("Successfully applied")
         return 0
-    else:
+    else:                                                                                       # Git apply failed to apply
         error_message = patch_file.runResult
         if kwargs['verbose'] > 0:
             print("Patch failed while it was run with git apply with error:")
@@ -327,9 +327,12 @@ def apply(pathToPatch, **kwargs):
                 #     continue
 
                 # Try applying the subpatch as normal
-                subpatch_run_success = patch.canApply(fileName)
-                if subpatch_run_success:
+                subpatch_run_status = patch.canApply(fileName)
+                
+                if subpatch_run_status == precheckStatus.CAN_APPLY:
                     successful_subpatches.append([patch, subpatch_name])
+                elif subpatch_run_status == precheckStatus.ALREADY_APPLIED:
+                    already_applied_subpatches.append([patch, subpatch_name])
                 else:
                     context_change_obj = cc.context_changes(patch)
                     diff_obj = context_change_obj.diff_obj
