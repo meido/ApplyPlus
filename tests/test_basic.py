@@ -47,11 +47,11 @@ class AppliedPatchTests(type):
                 result = context.context_changes(hunk)
                 self.assertEqual(result.messages, "No context related issues found.")
 
-            # for hunk in patch_file.patches:
-                # filename = os.path.join( os.getcwd(), hunk.getFileName() )
-                # self.assertTrue( os.path.isfile(filename), filename )
-                # result = hunk.canApply()
-                # self.assertFalse( result, hunk )
+            for hunk in patch_file.patches:
+                filename = os.path.join( os.getcwd(), hunk.getFileName() )
+                self.assertTrue( os.path.isfile(filename), filename )
+                result = hunk.canApply()
+                self.assertFalse( result, hunk )
 
         return f
 
@@ -65,84 +65,84 @@ class TestApplied(unittest.TestCase, metaclass=AppliedPatchTests):
 
     pass
 
-# class PatchTests(type):
-#     def __new__(mcls, name, bases, attrs):
-#         obj = super().__new__(mcls, name, bases, attrs)
+class PatchTests(type):
+    def __new__(mcls, name, bases, attrs):
+        obj = super().__new__(mcls, name, bases, attrs)
 
-#         patchpath = os.path.abspath(
-#             os.path.join(os.path.dirname(__file__), 'patches', 'clean'))
+        patchpath = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), 'patches', 'clean'))
 
-#         for filename in os.listdir(patchpath):
-#             if not filename.endswith('.patch'):
-#                 continue
+        for filename in os.listdir(patchpath):
+            if not filename.endswith('.patch'):
+                continue
 
-#             testname = GenerateTestName(filename)
-#             filename = os.path.join(patchpath, filename)
-#             if not hasattr(obj, 'test_' + testname):
-#                 setattr(obj, 'test_' + testname, mcls.build_test(filename))
+            testname = GenerateTestName(filename)
+            filename = os.path.join(patchpath, filename)
+            if not hasattr(obj, 'test_' + testname):
+                setattr(obj, 'test_' + testname, mcls.build_test(filename))
 
-#         return obj
+        return obj
 
-#     def build_test(test_filename):
-#         def f(self):
-#             patch_file = parse.PatchFile(test_filename)
-#             patch_file.getPatch()
+    def build_test(test_filename):
+        def f(self):
+            patch_file = parse.PatchFile(test_filename)
+            patch_file.getPatch()
 
-#             # There should only be one hunk in this file.
-#             self.assertEqual( len(patch_file.patches), 1 )
+            # There should only be one hunk in this file.
+            self.assertEqual( len(patch_file.patches), 1 )
 
-#             for hunk in patch_file.patches:
-#                 result = context.context_changes(hunk)
-#                 self.assertEqual(result.messages, "No context related issues found.")
+            for hunk in patch_file.patches:
+                result = context.context_changes(hunk)
+                self.assertEqual(result.messages, "No context related issues found.")
 
-#             for hunk in patch_file.patches:
-#                 filename = os.path.join( os.getcwd(), hunk.getFileName() )
-#                 self.assertTrue( os.path.isfile(filename), filename )
-#                 result = hunk.canApply()
-#                 self.assertTrue( result, hunk )
+            for hunk in patch_file.patches:
+                filename = os.path.join( os.getcwd(), hunk.getFileName() )
+                self.assertTrue( os.path.isfile(filename), filename )
+                result = hunk.canApply()
+                self.assertTrue( result, hunk )
 
-#         return f
+        return f
 
-# class TestPatches(unittest.TestCase, metaclass=PatchTests):
-#     def setUp(self):
-#         self.oldcwd=os.getcwd()
-#         os.chdir(os.path.dirname(__file__))
+class TestPatches(unittest.TestCase, metaclass=PatchTests):
+    def setUp(self):
+        self.oldcwd=os.getcwd()
+        os.chdir(os.path.dirname(__file__))
 
-#     def tearDown(self):
-#         os.chdir(self.oldcwd)
+    def tearDown(self):
+        os.chdir(self.oldcwd)
 
-#     def test_no_patch(self):
-#         patch_file = parse.PatchFile("patches/does-not-exist.patch")
-#         self.assertRaises( FileNotFoundError, patch_file.getPatch )
+    def test_no_patch(self):
+        patch_file = parse.PatchFile("patches/does-not-exist.patch")
+        self.assertRaises( FileNotFoundError, patch_file.getPatch )
 
-#     def test_no_file(self):
-#         patch_file = parse.PatchFile("patches/no-file.patch")
-#         patch_file.getPatch()
+    def test_no_file(self):
+        patch_file = parse.PatchFile("patches/no-file.patch")
+        patch_file.getPatch()
 
-#         # There should only be one hunk in this file.
-#         self.assertEqual( len(patch_file.patches), 1 )
+        # There should only be one hunk in this file.
+        self.assertEqual( len(patch_file.patches), 1 )
 
-#         for hunk in patch_file.patches:
-#             result = context.context_changes(hunk)
-#             self.assertRegex(result.messages, r'^The file .* does not exist$')
+        for hunk in patch_file.patches:
+            result = context.context_changes(hunk)
+            self.assertRegex(result.messages, r'^The file .* does not exist$')
 
-#     def test_name_change(self):
-#         patch_file = parse.PatchFile("patches/name-change.patch")
-#         patch_file.getPatch()
+    def test_name_change(self):
+        patch_file = parse.PatchFile("patches/name-change.patch")
+        patch_file.getPatch()
 
-#         # There should only be one hunk in this file.
-#         self.assertEqual( len(patch_file.patches), 1 )
+        # There should only be one hunk in this file.
+        self.assertEqual( len(patch_file.patches), 1 )
 
-#         for hunk in patch_file.patches:
-#             result = context.context_changes(hunk)
-#             self.assertRegex(result.messages, r'^The file .* does not exist$')
+        for hunk in patch_file.patches:
+            result = context.context_changes(hunk)
+            self.assertRegex(result.messages, r'^The file .* does not exist$')
 
-#     def test_two_changes(self):
-#         patch_file = parse.PatchFile("patches/clean/two-changes.patch")
-#         patch_file.getPatch()
+    def test_two_changes(self):
+        patch_file = parse.PatchFile("patches/clean/two-changes.patch")
+        patch_file.getPatch()
 
-#         # There should only be one hunk in this file.
-#         self.assertEqual( len(patch_file.patches), 2 )
+        # There should only be one hunk in this file.
+        self.assertEqual( len(patch_file.patches), 2 )
 
 if __name__ == "__main__":
     unittest.main()

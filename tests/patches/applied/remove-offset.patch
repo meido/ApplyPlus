@@ -5,9 +5,9 @@
          break;
      }
 -
-+    if (option < OPT_MAX) {
-+        printf( "Function finished.  Option printed.\n" );
-+    }
+-    if (option < OPT_MAX) {
+-        printf( "Function finished.  Option printed.\n" );
+-    }
      return 0;
  }
  
