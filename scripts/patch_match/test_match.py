@@ -345,7 +345,6 @@ def find_diffs(patch_obj, file_name, retry_obj=None, match_distance=3000):
         search_lines_without_type, file_name, line_number, retry_obj
     )
 
-    # print(match_start_line)
     if match_start_line == -1:
         search_lines_with_type = get_file_with_patch(patch_lines)
         search_lines_without_type = [line[1] for line in search_lines_with_type]
