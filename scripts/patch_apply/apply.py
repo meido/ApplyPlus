@@ -332,7 +332,7 @@ def apply(pathToPatch, **kwargs):
                 if subpatch_run_status == precheckStatus.CAN_APPLY:
                     successful_subpatches.append([patch, subpatch_name])
                 elif subpatch_run_status == precheckStatus.ALREADY_APPLIED:
-                    already_applied_subpatches.append([patch, subpatch_name])
+                    already_applied_subpatches.append(subpatch_name)
                 else:
                     context_change_obj = cc.context_changes(patch)
                     diff_obj = context_change_obj.diff_obj
