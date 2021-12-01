@@ -70,7 +70,7 @@ class TestContext(unittest.TestCase, metaclass=ContextPatchTests):
     errors = {
         'test_string': {
             'message': r'^This patch can be applied\.$',
-            'canApply': True
+            'canApply': False
         },
         'test_array_index': {
             'message': r'function call on the RHS of an expression\.',
@@ -86,15 +86,15 @@ class TestContext(unittest.TestCase, metaclass=ContextPatchTests):
         },
         'test_function_call': {
             'message': r'^This patch can be applied\.$',
-            'canApply': True
+            'canApply': False
         },
         'test_variable_change': {
             'message': r'^This patch can be applied\.$',
-            'canApply': True
+            'canApply': False
         },
         'test_variable_change_declaration': {
             'message': r'^This patch can be applied\.$',
-            'canApply': True
+            'canApply': False
         },
         'test_variable_change_LHS': {
             'message': r'Since the value on the LHS of the expression may have',
