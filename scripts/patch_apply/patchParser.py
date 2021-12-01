@@ -278,9 +278,10 @@ class Patch:
                         goal = len(self._lines)
                         while ite2 < goal and ite3 < len(self._lines):
 
-                            if self._lines[ite3][0] == natureOfChange.REMOVED and not removedFlag[ite3]:
-                                goal -= 1
-                                orgPatch.pop(checkLines + ite2)
+                            if self._lines[ite3][0] == natureOfChange.REMOVED:
+                                if not removedFlag[ite3]:
+                                    goal -= 1
+                                    orgPatch.pop(checkLines + ite2)
                                 ite3 += 1
                             elif self._lines[ite3][0] == natureOfChange.ADDED:
                                 orgPatch.insert(checkLines + ite2, self._lines[ite3][1])
