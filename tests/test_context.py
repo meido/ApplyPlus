@@ -70,7 +70,7 @@ class TestContext(unittest.TestCase, metaclass=ContextPatchTests):
 
     errors = {
         'test_string': {
-            'message': r'^No context related issues found\.$',
+            'message': r'^This patch can be applied\.$',
             'canApply': precheckStatus.CAN_APPLY
         },
         'test_array_index': {
@@ -86,7 +86,7 @@ class TestContext(unittest.TestCase, metaclass=ContextPatchTests):
             'canApply': precheckStatus.CAN_APPLY
         },
         'test_function_call': {
-            'message': r'^No context related issues found\.$',
+            'message': r'^This patch can be applied\.$',
             'canApply': precheckStatus.CAN_APPLY
         },
         'test_variable_change': {

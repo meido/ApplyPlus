@@ -70,7 +70,7 @@ class TestPatches(unittest.TestCase, metaclass=PatchTests):
             'success': False
         },
         'test_bad_index': {
-            'result': 'Patch contains hunks that were skipped',
+            'result': 'skipped',
             'success': False
         }
     }
