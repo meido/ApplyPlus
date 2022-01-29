@@ -160,7 +160,7 @@ class Patch:
                         if len(orgPatch[original_patch_offset].strip()) == 0:
                             blank_line_offset_file -= 1
                             ite -= 1
-                        elif len(self._lines[ite][1].strip()) == 0:
+                        elif len(self._lines[ite][1].strip()) == 0 and self._lines[ite][0] != natureOfChange.REMOVED:
                             blank_line_offset_file += 1
                         else:
                             patch_found_flag = False

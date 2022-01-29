@@ -1,3 +1,4 @@
+from re import L
 import diff_match_patch as dmp_module
 import scripts.patch_apply.patchParser as parse
 import Levenshtein
@@ -305,7 +306,6 @@ def find_diffs(patch_obj, file_name, retry_obj=None, match_distance=3000):
             + len(search_lines_with_type)
             + PATCH_LENGTH_BUFFER
         ]
-
     removed_diffs = []
     added_diffs = []
     context_diffs = []
@@ -330,6 +330,7 @@ def find_diffs(patch_obj, file_name, retry_obj=None, match_distance=3000):
         max_ratio = 0
         max_ratio_file_line = ""
         matched_file_idx = -1
+        # For each line in the patch, search over all lines in the file to find a match.
         for file_idx in range(len(file_lines)):
             file_line = file_lines[file_idx]
             cur_ratio = Levenshtein.ratio(file_line.strip(), stripped_patch_line)
@@ -374,7 +375,13 @@ def find_diffs(patch_obj, file_name, retry_obj=None, match_distance=3000):
             )
             patch_line_type_to_list[patch_line[0]].append(line_diff_obj)
         elif patch_line[0] != natureOfChange.REMOVED:
-            missing_diff = Diff.LineDiff(stripped_patch_line)
+            missing_diff = Diff.LineDiff(
+                patch_line=stripped_patch_line,
+                file_line=max_ratio_file_line,
+                file_line_number=match_start_line + idx + 1,
+                match_ratio=max_ratio,
+                function_for_patch=function_for_patch,
+                )
             patch_line_type_to_list[patch_line[0]].append(missing_diff)
 
     additional_lines = []
