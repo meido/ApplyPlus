@@ -197,6 +197,17 @@ class Patch:
                             # the lines to be removed present in the file
                             return precheckStatus.CAN_APPLY
                     return precheckStatus.ALREADY_APPLIED
+                else:
+                    for removed in removedFlag:
+                        if not removed:
+                            # We found some lines should be removed presented in the file
+                            # But we cannot find the exact match of this patch
+                            # This is the case when, we might partially find some removed line presented in the file in the firse checkLines chunk
+                            # But then the following lines did not match the patch
+                            # We kept those records in the array. We cannot keep it towards the next checkLines chunk check. Discard that change will also result in false positive
+                            # see msm-3.10: CVE-2016-3672.patch
+                            return precheckStatus.NO_MATCH_FOUND
+
         return precheckStatus.NO_MATCH_FOUND
 
     def Apply(self, applyTo, dry_run=False):
@@ -281,9 +292,7 @@ class Patch:
                                 if not removedFlag[ite3]:
                                     goal -= 1
                                     orgPatch.pop(checkLines + ite2)
-                                    ite3 += 1
-                                else:
-                                    ite3 += 1
+                                ite3 += 1
                             elif self._lines[ite3][0] == natureOfChange.ADDED:
                                 orgPatch.insert(checkLines + ite2, self._lines[ite3][1])
                                 ite2 += 1
