@@ -175,8 +175,7 @@ class Patch:
                             # orgPatch empty line. keep ite the same but check next line of orgPatch
                             blank_line_offset_file -= 1
                             ite -= 1
-                        elif len(self._lines[ite][1].strip()) == 0:
-                            # hunk empty line. go to next line of hunk
+                        elif len(self._lines[ite][1].strip()) == 0 and self._lines[ite][0] != natureOfChange.REMOVED:
                             blank_line_offset_file += 1
                         else:
                             # doesn't match
