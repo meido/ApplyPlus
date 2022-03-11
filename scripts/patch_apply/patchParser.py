@@ -2,7 +2,7 @@ from enum import Enum
 import re
 import os
 import subprocess
-from scripts.enums import natureOfChange
+from scripts.enums import natureOfChange, precheckStatus
 
 
 class Patch:
@@ -108,7 +108,10 @@ class Patch:
 
     def canApply(self, applyTo=None):
         """
-        Returns True if this patch can be applied, false otherwise
+            Returns a enum precheckStatus:
+                CAN_APPLY: We found the exact match, and we found that some lines in the patch haven't been applied
+                ALREADY_APPLIED: We found the exact match, and all lines in the patch have been applied
+                NO_MATCH_FOUND: We cannot find the exact match, need fuzzy check in the future
         """
 
         if applyTo is None:
@@ -126,7 +129,7 @@ class Patch:
 
                 line = line.strip("\n")
                 orgPatch.append(line)
-
+        removedFlag = [ True for i in range(len(self._lines))]
         for checkLines in range(len(orgPatch)):
             # Check if first line of patch exists
             if orgPatch[checkLines].strip() == self._to_raw(self._lines[1][1]).strip():
@@ -134,6 +137,8 @@ class Patch:
                 blank_line_offset_file = 0
                 added_offset = 0
                 ite = 2
+
+                # Check if the following lines match
                 while ite < len(self._lines):
                     original_patch_offset = (
                         checkLines + ite - 1 - blank_line_offset_file - added_offset
@@ -153,16 +158,27 @@ class Patch:
                             )
                         else:
                             added_offset += 1
+                    elif self._lines[ite][0] == natureOfChange.REMOVED:
+                        if (
+                            orgPatch[original_patch_offset].strip()
+                            == self._lines[ite][1].strip()
+                        ):  # removed line still present
+                            removedFlag[ite] = False
+                        else:
+                            # line removed, do not increase the orgPatch index.
+                            added_offset += 1
                     elif (
                         orgPatch[original_patch_offset].strip()
                         != self._lines[ite][1].strip()
                     ):
                         if len(orgPatch[original_patch_offset].strip()) == 0:
+                            # orgPatch empty line. keep ite the same but check next line of orgPatch
                             blank_line_offset_file -= 1
                             ite -= 1
                         elif len(self._lines[ite][1].strip()) == 0 and self._lines[ite][0] != natureOfChange.REMOVED:
                             blank_line_offset_file += 1
                         else:
+                            # doesn't match
                             patch_found_flag = False
                             break
                     ite += 1
@@ -170,18 +186,24 @@ class Patch:
                     # If they are all context lines now, this patch
                     # has already been applied and shouldn't be
                     # applied again.
+
                     for ite_line in self._lines:
-                        if ite_line[0] != natureOfChange.CONTEXT:
-                            return True
-                    return False
-        return False
+                        if ite_line[0] == natureOfChange.ADDED:
+                            # the lines to be added hasn't beed added yet
+                            return precheckStatus.CAN_APPLY
+                    for removed in removedFlag:
+                        if not removed:
+                            # the lines to be removed present in the file
+                            return precheckStatus.CAN_APPLY
+                    return precheckStatus.ALREADY_APPLIED
+        return precheckStatus.NO_MATCH_FOUND
 
     def Apply(self, applyTo, dry_run=False):
         """
         If patch can be applied, this method
         applies it.
         """
-        if self.canApply(applyTo):
+        if self.canApply(applyTo) == precheckStatus.CAN_APPLY:
             orgPatch = []
             with open(applyTo, "r", encoding="utf-8") as srcfile:
                 while True:
@@ -190,6 +212,8 @@ class Patch:
                         break
                     orgPatch.append(line.strip("\n"))
 
+            # start by assuming all lines to be removed are removed
+            removedFlag = [ True for i in range(len(self._lines))]
             for checkLines in range(len(orgPatch)):
                 # Check if first line of patch exists
                 if (
@@ -200,6 +224,7 @@ class Patch:
                     blank_line_offset_file = 0
                     added_offset = 0
                     ite = 2
+                    # check the following lines after matched the first line
                     while ite < len(self._lines):
                         original_patch_offset = (
                             checkLines + ite - 1 - blank_line_offset_file - added_offset
@@ -219,6 +244,17 @@ class Patch:
                                     natureOfChange.CONTEXT,
                                     self._lines[ite][1],
                                 )
+                            else:
+                                added_offset += 1
+                        elif (
+                            self._lines[ite][0] == natureOfChange.REMOVED
+                        ):
+                            if (
+                                orgPatch[original_patch_offset].strip()
+                                == self._lines[ite][1].strip()
+                            ):
+                                # find presence of a removed line
+                                removedFlag[ite] = False
                             else:
                                 added_offset += 1
                         elif (
@@ -242,8 +278,9 @@ class Patch:
                         while ite2 < goal and ite3 < len(self._lines):
 
                             if self._lines[ite3][0] == natureOfChange.REMOVED:
-                                goal -= 1
-                                orgPatch.pop(checkLines + ite2)
+                                if not removedFlag[ite3]:
+                                    goal -= 1
+                                    orgPatch.pop(checkLines + ite2)
                                 ite3 += 1
                             elif self._lines[ite3][0] == natureOfChange.ADDED:
                                 orgPatch.insert(checkLines + ite2, self._lines[ite3][1])
@@ -262,7 +299,8 @@ class Patch:
                                     ite2 += 1
                                     ite3 += 1
 
-                        if not dry_run:
+                        # if not dry_run:
+                        if False: # test
                             writeobj = open(applyTo, "w")
                             for i in orgPatch:
                                 i = i.replace("\n", "\\n")

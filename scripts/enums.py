@@ -34,3 +34,8 @@ class natureOfChange(Enum):
     ADDED = 1
     REMOVED = -1
     CONTEXT = 0
+
+class precheckStatus(Enum):
+    CAN_APPLY = 1
+    ALREADY_APPLIED = -1
+    NO_MATCH_FOUND = 0

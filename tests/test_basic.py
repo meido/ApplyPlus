@@ -8,6 +8,7 @@ import re
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "."))
 import scripts.patch_context.context_changes as context
 import scripts.patch_apply.patchParser as parse
+from scripts.enums import precheckStatus
 
 def GenerateTestName(filename):
     if filename.endswith('.patch'):
@@ -51,7 +52,7 @@ class AppliedPatchTests(type):
                 filename = os.path.join( os.getcwd(), hunk.getFileName() )
                 self.assertTrue( os.path.isfile(filename), filename )
                 result = hunk.canApply()
-                self.assertFalse( result, hunk )
+                self.assertEqual( result, precheckStatus.ALREADY_APPLIED, hunk )
 
         return f
 
