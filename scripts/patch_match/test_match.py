@@ -156,30 +156,109 @@ def fuzzy_search(search_lines, file_name, patch_line_number, retry_obj=None):
 
     file_str = "".join(file_lines)
 
+    # Use retry_interval as inital interval, if not found, use default 1000 * 0.8 = 800
+    best_threshold = 0.01
+    high_threshold = 0.2
+    default_distance = dmp.Match_Distance
+    default_threshold = dmp.Match_Threshold
+    distance = default_threshold * default_distance
+    if retry_obj:
+        end_line = retry_obj.retry_interval + patch_line_number
+        if end_line in line_to_char_dict:
+            distance = line_to_char_dict[end_line]
+
+    # First look for a best similar match:
+    dmp.Match_Threshold = best_threshold 
+    dmp.Match_Distance = distance /best_threshold 
     char_match_loc = dmp.match_main(file_str, search_pattern, search_location)
+    # Then look for a highly similar match:
+    if char_match_loc == -1:
+        dmp.Match_Threshold = high_threshold
+        dmp.Match_Distance = distance / high_threshold
+        char_match_loc = dmp.match_main(file_str, search_pattern, search_location)
 
+    # no highly similar found, do a default fuzzy match
+    if char_match_loc == -1:
+        dmp.Match_Threshold = default_threshold
+        dmp.Match_distance = default_distance
+        char_match_loc = dmp.match_main(file_str, search_pattern, search_location)
+
+    # no match found in the initial place. Retry:
     if char_match_loc == -1 and retry_obj:
+        overlap_line = 5
+        distance = retry_obj.retry_interval + overlap_line
         for i in range(1, retry_obj.retry_times + 1):
-            search_above_line = patch_line_number + i * retry_obj.retry_interval
-            search_below_line = patch_line_number - i * retry_obj.retry_interval
-
-            if search_above_line in line_to_char_dict:
-                search_above_res = dmp.match_main(
-                    file_str, search_pattern, line_to_char_dict[search_above_line]
-                )
-                if search_above_res != -1:
-                    char_match_loc = search_above_res
-                    break
-            if search_below_line in line_to_char_dict:
-                search_below_res = dmp.match_main(
-                    file_str, search_pattern, line_to_char_dict[search_below_line]
-                )
-                if search_below_res != -1:
-                    char_match_loc = search_below_res
-                    break
-            if search_above_line not in line_to_char_dict and search_below_line not in line_to_char_dict:
+            above_start_line = patch_line_number - i * retry_obj.retry_interval
+            below_start_line = patch_line_number + i * retry_obj.retry_interval - overlap_line
+            search_above_res = -1
+            search_below_res = -1
+            if above_start_line not in line_to_char_dict and below_start_line not in line_to_char_dict:
                 break
 
+            # Search for a best similar match in both interval: 99%
+            dmp.Match_Threshold = best_threshold 
+            dmp.Match_Distance = distance / dmp.Match_Threshold
+            if above_start_line in line_to_char_dict:
+                search_above_res = dmp.match_main(
+                    file_str, search_pattern, line_to_char_dict[above_start_line]
+                )
+
+            # Search the second interval:
+            if below_start_line in line_to_char_dict:
+                search_below_res = dmp.match_main(
+                    file_str, search_pattern, line_to_char_dict[below_start_line]
+                )
+            
+            if search_above_res == -1 and search_below_res == -1:
+                # no best similar match, do highly similar match for 80%
+                dmp.Match_Threshold = high_threshold 
+                dmp.Match_Distance = distance / dmp.Match_Threshold
+                if above_start_line in line_to_char_dict:
+                    search_above_res = dmp.match_main(
+                        file_str, search_pattern, line_to_char_dict[above_start_line]
+                    )
+                if below_start_line in line_to_char_dict:
+                    search_below_res = dmp.match_main(
+                        file_str, search_pattern, line_to_char_dict[below_start_line]
+                    )
+            elif search_above_res == -1 or search_below_res == -1:
+                # we found exactly one highly similar match, return that one
+                char_match_loc = search_above_res if search_above_res != -1 else search_below_res
+                break
+
+            if search_above_res == -1 and search_below_res == -1:
+                # no highly similar match, do default threshold fuzzy match 50%
+                dmp.Match_Threshold = default_threshold
+                dmp.Match_Distance = distance / dmp.Match_Threshold
+                if above_start_line in line_to_char_dict:
+                    search_above_res = dmp.match_main(
+                        file_str, search_pattern, line_to_char_dict[above_start_line]
+                    )
+                if below_start_line in line_to_char_dict:
+                    search_below_res = dmp.match_main(
+                        file_str, search_pattern, line_to_char_dict[below_start_line]
+                    )
+            elif search_above_res == -1 or search_below_res == -1:
+                # we found exactly one highly similar match, return that one
+                char_match_loc = search_above_res if search_above_res != -1 else search_below_res
+                break
+
+            if search_above_res != -1 and search_below_res != -1:
+                # Found two highly similar match or two low similar match, calculate levenshtein ratio to decide
+                above_ratio = Levenshtein.ratio(search_lines, file_str[search_above_res:(search_above_res+len(search_lines)) ] )
+                below_ratio = Levenshtein.ratio(search_lines, file_str[search_below_res:(search_below_res+len(search_below_res)) ] )
+                char_match_loc = search_above_res if above_ratio > below_ratio else search_below_res
+                if above_ratio == below_ratio:
+                    # if same ratio, return the closer one to the start point. If still same, we prefer the below one
+                    char_match_loc = search_above_res if abs(search_location - search_above_res) < abs(search_below_res - search_location) else search_below_res 
+                break
+            elif search_above_res != -1 or search_below_res != -1:
+                # we found exactly one low similar match, return that one
+                char_match_loc = search_above_res if search_above_res != -1 else search_below_res
+                break
+
+            # We did not find any similar match in this interval. try again
+            
     if char_match_loc != -1:
         return file_str[: char_match_loc + 1].count("\n") + 1
     else:
