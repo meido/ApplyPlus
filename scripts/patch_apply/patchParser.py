@@ -207,7 +207,6 @@ class Patch:
                             # We kept those records in the array. We cannot keep it towards the next checkLines chunk check. Discard that change will also result in false positive
                             # see msm-3.10: CVE-2016-3672.patch
                             return precheckStatus.NO_MATCH_FOUND
-
         return precheckStatus.NO_MATCH_FOUND
 
     def Apply(self, applyTo, dry_run=False):
