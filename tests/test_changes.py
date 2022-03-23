@@ -8,6 +8,7 @@ import re
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "."))
 import scripts.patch_context.context_changes as context
 import scripts.patch_apply.patchParser as parse
+from scripts.enums import precheckStatus
 
 def GenerateTestName(filename):
     if filename.endswith('.patch'):
@@ -70,15 +71,15 @@ class TestChanges(unittest.TestCase, metaclass=PatchTests):
     errors = {
         'test_function_removed': {
             'message': r'A context match was not found\.',
-            'canApply': False
+            'canApply': precheckStatus.NO_MATCH_FOUND
         },
         'test_string': {
             'message': r'^No context related issues found\.$',
-            'canApply': False
+            'canApply': precheckStatus.NO_MATCH_FOUND
         },
         'test_code_missing': {
             'message': r'^No context related issues found\.$',
-            'canApply': False
+            'canApply': precheckStatus.CAN_APPLY
         },
     }
 

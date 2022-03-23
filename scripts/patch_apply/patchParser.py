@@ -176,6 +176,7 @@ class Patch:
                             blank_line_offset_file -= 1
                             ite -= 1
                         elif len(self._lines[ite][1].strip()) == 0 and self._lines[ite][0] != natureOfChange.REMOVED:
+                            # hunk empty line. go to next line of hunk
                             blank_line_offset_file += 1
                         else:
                             # doesn't match
@@ -196,6 +197,16 @@ class Patch:
                             # the lines to be removed present in the file
                             return precheckStatus.CAN_APPLY
                     return precheckStatus.ALREADY_APPLIED
+                else:
+                    for removed in removedFlag:
+                        if not removed:
+                            # We found some lines should be removed presented in the file
+                            # But we cannot find the exact match of this patch
+                            # This is the case when, we might partially find some removed line presented in the file in the firse checkLines chunk
+                            # But then the following lines did not match the patch
+                            # We kept those records in the array. We cannot keep it towards the next checkLines chunk check. Discard that change will also result in false positive
+                            # see msm-3.10: CVE-2016-3672.patch
+                            return precheckStatus.NO_MATCH_FOUND
         return precheckStatus.NO_MATCH_FOUND
 
     def Apply(self, applyTo, dry_run=False):
@@ -276,7 +287,6 @@ class Patch:
                         ite3 = 1
                         goal = len(self._lines)
                         while ite2 < goal and ite3 < len(self._lines):
-
                             if self._lines[ite3][0] == natureOfChange.REMOVED:
                                 if not removedFlag[ite3]:
                                     goal -= 1

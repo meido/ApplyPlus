@@ -1,4 +1,3 @@
-from re import L
 import diff_match_patch as dmp_module
 import scripts.patch_apply.patchParser as parse
 import Levenshtein
