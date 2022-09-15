@@ -1,0 +1,4 @@
+diff --git a/tests/patches/test.so b/tests/patches/test.so
+new file mode 100644
+index 0000000..649223da
+Binary files /dev/null and b/tests/patches/test.so differ

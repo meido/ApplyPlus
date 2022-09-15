@@ -41,12 +41,20 @@ def context_changes(sub_patch, expand=False):
     file_path = os.path.join( os.getcwd(), sub_patch.getFileName() )
 
     if not os.path.exists(file_path):
-        return ContextResult(
-            CONTEXT_DECISION.DONT_RUN.value,
-            "The file %s does not exist" % (file_path),
-            None,
-            False,
-        )
+        if not sub_patch.isNewFile():
+            return ContextResult(
+                CONTEXT_DECISION.DONT_RUN.value,
+                "The file %s does not exist" % (file_path),
+                None,
+                False,
+            )
+        else:
+            return ContextResult(
+                CONTEXT_DECISION.RUN.value,
+                "No context related issues found.",
+                None,
+                False,
+            )
 
     file_slice = slice.SliceParser(file_path)
     file_slice_parsed = file_slice.slice_parse()

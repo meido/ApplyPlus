@@ -78,7 +78,7 @@ class TestChanges(unittest.TestCase, metaclass=PatchTests):
             'canApply': precheckStatus.NO_MATCH_FOUND
         },
         'test_code_missing': {
-            'message': r'^No context related issues found\.$',
+            'message': r'^A context match was not found\.$',
             'canApply': precheckStatus.CAN_APPLY
         },
     }

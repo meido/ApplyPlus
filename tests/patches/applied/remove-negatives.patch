@@ -1,0 +1,13 @@
+--- a/patches/pluses.c	2022-07-08 12:10:51.635102787 -0400
++++ b/patches/pluses.c	2022-07-08 12:08:21.758457580 -0400
+@@ -1,10 +1,6 @@
+ #include <stdio.h>
+ 
+ /*
+--- This is a line with two negative signs at the front.
+-*/
+-
+-/*
+ ++ This is a line with two plus signs at the front.
+ */
+ 

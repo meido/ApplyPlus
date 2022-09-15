@@ -44,15 +44,24 @@ class AppliedPatchTests(type):
             # There should only be one hunk in this file.
             self.assertEqual( len(patch_file.patches), 1 )
 
+            testcase = self.id().split('.')[-1]
+            if testcase in self.errors:
+                expected = self.errors[testcase]
+            else:
+                expected = {
+                    'message': r'No context related issues found.',
+                    'canApply': precheckStatus.ALREADY_APPLIED
+                }
+
             for hunk in patch_file.patches:
                 result = context.context_changes(hunk)
-                self.assertEqual(result.messages, "No context related issues found.")
+                self.assertEqual(result.messages, expected['message'])
 
             for hunk in patch_file.patches:
                 filename = os.path.join( os.getcwd(), hunk.getFileName() )
                 self.assertTrue( os.path.isfile(filename), filename )
                 result = hunk.canApply()
-                self.assertEqual( result, precheckStatus.ALREADY_APPLIED, hunk )
+                self.assertEqual( result, expected['canApply'], hunk )
 
         return f
 
@@ -64,7 +73,16 @@ class TestApplied(unittest.TestCase, metaclass=AppliedPatchTests):
     def tearDown(self):
         os.chdir(self.oldcwd)
 
-    pass
+    errors = {
+        'test_remove_offset': {
+            'message': r'A context match was not found.',
+            'canApply': precheckStatus.ALREADY_APPLIED
+        },
+        'test_remove_offset_similar2': {
+            'message': r'A context match was not found.',
+            'canApply': precheckStatus.ALREADY_APPLIED
+        },
+    }
 
 class PatchTests(type):
     def __new__(mcls, name, bases, attrs):
@@ -98,9 +116,9 @@ class PatchTests(type):
 
             for hunk in patch_file.patches:
                 filename = os.path.join( os.getcwd(), hunk.getFileName() )
-                self.assertTrue( os.path.isfile(filename), filename )
-                result = hunk.canApply()
-                self.assertTrue( result, hunk )
+                if not hunk.isNewFile():
+                    self.assertTrue( os.path.isfile(filename), filename )
+                self.assertTrue( hunk.canApply(), hunk )
 
         return f
 

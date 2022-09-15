@@ -66,7 +66,7 @@ class TestApplied(unittest.TestCase):
 
             self.assertRegex( fakeOutput.getvalue(), 'Patch failed to apply with git apply' )
             self.assertRegex( fakeOutput.getvalue(), '1 subpatches can be applied successfully:' )
-            self.assertRegex( fakeOutput.getvalue(), 'would have been successfully applied \(dry run\)' )
+            self.assertRegex( fakeOutput.getvalue(), r'would have been successfully applied \(dry run\)' )
 
     def test_context_function(self):
         with patch('sys.stdout', new=StringIO()) as fakeOutput:
@@ -78,7 +78,7 @@ class TestApplied(unittest.TestCase):
 
             self.assertRegex( fakeOutput.getvalue(), 'Patch failed to apply with git apply' )
             self.assertRegex( fakeOutput.getvalue(), '1 subpatches can be applied successfully:' )
-            self.assertRegex( fakeOutput.getvalue(), 'would have been successfully applied \(dry run\)' )
+            self.assertRegex( fakeOutput.getvalue(), r'would have been successfully applied \(dry run\)' )
 
     def test_applied_offset(self):
         with patch('sys.stdout', new=StringIO()) as fakeOutput:
@@ -112,6 +112,26 @@ class TestApplied(unittest.TestCase):
             self.assertNotRegex( fakeOutput.getvalue(), 'Subpatches that were applied by git apply:' )
             self.assertRegex( fakeOutput.getvalue(), 'Subpatches that did not apply, and we could not find where the patch should be applied' )
 
+    def test_binary(self):
+        with patch('sys.stdout', new=StringIO()) as fakeOutput:
+            apply.main( pathToPatch='patches/git/binary.patch',
+                        dry_run=True,
+                        reverse=False,
+                        verbose=2,
+            )
+
+            self.assertRegex( fakeOutput.getvalue(), ':skipped' )
+
+    def test_binary2(self):
+        with patch('sys.stdout', new=StringIO()) as fakeOutput:
+            apply.main( pathToPatch='patches/git/binary-2.patch',
+                        dry_run=True,
+                        reverse=False,
+                        verbose=2,
+            )
+
+            self.assertRegex( fakeOutput.getvalue(), 'cannot apply binary patch to ' )
+            self.assertRegex( fakeOutput.getvalue(), r'Binary patch detected\.' )
 
 if __name__ == "__main__":
     unittest.main()

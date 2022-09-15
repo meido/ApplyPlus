@@ -30,8 +30,8 @@ def checkFileExistsElsewhere(patch):
 
     if len(matched_file_locations) == 0:
         return None
-    else:
-        print("----------------------------------------------------------------------")
+    elif sys.stdout.isatty():
+        print("-" * 70)
         print(
             "Here are the locations of files with the same filename as the following missing file: {}".format(
                 toFind
@@ -44,7 +44,7 @@ def checkFileExistsElsewhere(patch):
             "Select the file you would like to apply the patch to by entering the number next to it. Enter anything else to do nothing\n"
         )
 
-        print("----------------------------------------------------------------------")
+        print("-" * 70)
         try:
             to_apply_file_index = int(to_apply_file_index)
             if 0 <= to_apply_file_index and to_apply_file_index < len(
@@ -53,7 +53,10 @@ def checkFileExistsElsewhere(patch):
                 return matched_file_locations[to_apply_file_index]
         except ValueError:
             return None
-
+    else:
+        print(f"Possible files to apply the patch for {toFind} to:")
+        for i in matched_file_locations:
+            print(f"  {i}")
 
 # Testing
 # patch_file = parse.PatchFile("../vulnerableforks/patches/CVE-2014-8172.patch")

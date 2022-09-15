@@ -357,7 +357,7 @@ def compare_nearby(patch_idx, patch_lines, file_idx, file_lines):
 def find_diffs(patch_obj, file_name, retry_obj=None, match_distance=3000):
     dmp.Match_Distance = match_distance
     function_for_patch, patch_lines = patch_obj._lines[0][1], patch_obj._lines[1:]
-    line_number = patch_obj._lineschanged[2]
+    line_number = patch_obj._newStart
 
     search_lines_with_type = get_file_without_patch(patch_lines)
     search_lines_without_type = [line[1] for line in search_lines_with_type]
