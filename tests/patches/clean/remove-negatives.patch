@@ -1,0 +1,12 @@
+--- a/patches/negatives.c	2022-07-07 17:55:34.667754758 -0400
++++ b/patches/negatives.c	2022-07-07 17:56:47.488063079 -0400
+@@ -1,9 +1,5 @@
+ #include <stdio.h>
+ 
+-/*
+--- This is a line with two negatives at the front.
+-*/
+-
+ int main( int argc, char ** argv ) {
+     printf( "Hello world.\n" );
+ }

@@ -17,6 +17,10 @@ import scripts.patch_context.context_changes as cc
 import scripts.patch_apply.check_file_exists_elsewhere as check_exist
 from scripts.enums import MatchStatus, natureOfChange, CONTEXT_DECISION, precheckStatus
 
+def indent(text, amount, ch = ' '):
+    padding = amount * ch
+    return ''.join(padding + line for line in text.splitlines(True))
+
 def findGitPrefix(path):
     prefix=''
     resolved=False
@@ -240,7 +244,7 @@ def apply(pathToPatch, **kwargs):
         error_message = patch_file.runResult
         if kwargs['verbose'] > 0:
             print("Patch failed while it was run with git apply with error:")
-            print(error_message)
+            print(indent(error_message, 4))
         else:
             print("Patch failed to apply with git apply.")
 
@@ -250,17 +254,21 @@ def apply(pathToPatch, **kwargs):
         does_not_apply = set()
 
         for line in error_message_lines:
-            print(line)
             split_line = [s.strip() for s in line.split(":")]
             if line[0:2] == "  ":
                 pass
             elif split_line[0] == "error":
                 if split_line[1].startswith("corrupt patch"):
                     line_num = re.findall(r'\d+', split_line[1])
-                    print("The patch is corrupted at line %s, stop processing..." % line_num[0])
+                    print("The patch is corrupted at line %s." % line_num[0])
                     return 1
-
-                if split_line[2] == "patch does not apply":
+                elif split_line[1].startswith("git diff header lacks filename information"):
+                    print("The patch is corrupted at line %s." % line_num[0])
+                    return 1
+                elif split_line[1].startswith("cannot apply binary patch"):
+                    print("Binary patch detected.")
+                    return 1
+                elif split_line[2] == "patch does not apply":
                     does_not_apply.add(split_line[1])
                 elif split_line[2] == "already exists":
                     already_exists.add(split_line[1])
@@ -307,10 +315,10 @@ def apply(pathToPatch, **kwargs):
             gitFileName = os.path.join( findGitPrefix(fileName), fileName )
 
             if see_patches:
-                print("\n" + ":".join([fileName, str(patch._lineschanged[0])]))
+                print("\n" + ":".join([fileName, str(patch._oldStart)]))
                 print(patch)
 
-            subpatch_name = ":".join([fileName, str(patch._lineschanged[0])])
+            subpatch_name = ":".join([fileName, str(patch._oldStart)])
 
             if gitFileName in file_not_found:
                 correct_loc = check_exist.checkFileExistsElsewhere(patch)

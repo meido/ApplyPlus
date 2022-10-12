@@ -1,0 +1,13 @@
+--- a/patches/test.cpp	2022-04-22 13:51:48.544311829 -0400
++++ b/patches/test.cpp	2022-07-07 17:53:47.927302814 -0400
+@@ -1,6 +1,10 @@
+ #include <string>
+ #include <memory.h>
+ 
++/*
++++ This is a line with two plus signs at the beginning.
++*/
++
+ typedef struct element_t {
+     size_t length;
+     size_t max_length;

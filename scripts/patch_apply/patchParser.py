@@ -6,7 +6,7 @@ from scripts.enums import natureOfChange, precheckStatus
 
 
 class Patch:
-    def __init__(self, filename):
+    def __init__(self):
         """
         Constructor
         --------------------------
@@ -15,11 +15,17 @@ class Patch:
         _lines is a list of tuples of the format-
         [(<nature_of_change>, <change>),(<nature_of_change>, <change>),...,]
         Nature of Change can be one of the enums defined in natureOfChange (ADDED, REMOVED, CONTEXT)
-        _lineschanged stores the lines changed info for a patch. ie- The data found between @@s
+        _oldStart, _oldLength, _newStart, and _newLength store the lines changed info for a patch.
+        ie- The data found between @@s
         """
-        self._fileName = filename
+        self._fileName = None
         self._lines = []
-        self._lineschanged = [-1, -1, -1, -1]
+        self._oldStart = -1
+        self._oldLength = -1
+        self._newStart = -1
+        self._newLength = -1
+        self._isNewFile = False
+        self._isFileRemoved = False
 
     def __str__(self):
         """
@@ -55,40 +61,46 @@ class Patch:
         """
         return self._fileName
 
+    def setFileName(self, filename):
+        self._fileName = filename
+
+    def isNewFile(self):
+        return self._isNewFile
+
     def setLinesChanged(self, rawData):
         """
         Method used to add lines changed info for a patch
         """
         match = re.fullmatch(r'@@ -([0-9]+),([0-9]+) *\+([0-9]+),([0-9]+) @@.*', rawData)
         if match is not None:
-            self._lineschanged[0] = int(match.group(1))
-            self._lineschanged[1] = int(match.group(2))
-            self._lineschanged[2] = int(match.group(3))
-            self._lineschanged[3] = int(match.group(4))
+            self._oldStart = int(match.group(1))
+            self._oldLength = int(match.group(2))
+            self._newStart = int(match.group(3))
+            self._newLength = int(match.group(4))
             return
 
         match = re.fullmatch(r'@@ -([0-9]+) *\+([0-9]+),([0-9]+) @@.*', rawData)
         if match is not None:
-            self._lineschanged[0] = int(match.group(1))
-            self._lineschanged[1] = 1
-            self._lineschanged[2] = int(match.group(2))
-            self._lineschanged[3] = int(match.group(3))
+            self._oldStart = int(match.group(1))
+            self._oldLength = 1
+            self._newStart = int(match.group(2))
+            self._newLength = int(match.group(3))
             return
 
         match = re.fullmatch(r'@@ -([0-9]+),([0-9]+) *\+([0-9]+) @@.*', rawData)
         if match is not None:
-            self._lineschanged[0] = int(match.group(1))
-            self._lineschanged[1] = int(match.group(2))
-            self._lineschanged[2] = int(match.group(3))
-            self._lineschanged[3] = 1
+            self._oldStart = int(match.group(1))
+            self._oldLength = int(match.group(2))
+            self._newStart = int(match.group(3))
+            self._newLength = 1
             return
 
         match = re.fullmatch(r'@@ -([0-9]+) *\+([0-9]+) @@.*', rawData)
         if match is not None:
-            self._lineschanged[0] = int(match.group(1))
-            self._lineschanged[1] = 1
-            self._lineschanged[2] = int(match.group(2))
-            self._lineschanged[3] = 1
+            self._oldStart = int(match.group(1))
+            self._oldLength = 1
+            self._newStart = int(match.group(2))
+            self._newLength = 1
             return
 
         raise ValueError( "Don't know how to handle context line %s" % rawData)
@@ -100,7 +112,7 @@ class Patch:
         Eg: For @@ -20,7 +20,6 @@,
         this method returns [-20, 7, 20, 6]
         """
-        return self._lineschanged
+        return (self._oldStart, self._oldLength, self._newStart, self._newLength)
 
     def _to_raw(self, string):
         """ Private helper method to return raw string"""
@@ -118,10 +130,12 @@ class Patch:
             applyTo = os.path.join( os.getcwd(), self.getFileName())
 
         if not os.path.isfile(applyTo):
+            if self.isNewFile():
+                return True
             return False
 
         orgPatch = []
-        with open(applyTo, "r", encoding="utf-8") as srcfile:
+        with open(applyTo, "r", encoding="utf-8", errors='ignore') as srcfile:
             while True:
                 line = srcfile.readline()
                 if not line:
@@ -309,8 +323,7 @@ class Patch:
                                     ite2 += 1
                                     ite3 += 1
 
-                        # if not dry_run:
-                        if False: # test
+                        if not dry_run:
                             writeobj = open(applyTo, "w")
                             for i in orgPatch:
                                 i = i.replace("\n", "\\n")
@@ -374,14 +387,48 @@ class PatchFile:
         """
 
         with open(self.pathToFile) as fileObj:
-            file = fileObj.read().rstrip()
-            file = file.split("\n")
+            file = fileObj.read().split("\n")
 
         patchObj = None
+        oldPatchObj = None
+
+        hunkRemaining = [0, 0]
 
         for line in file:
-            # print( "Line: %s" % line)
-            # print("________________")
+
+            if hunkRemaining[0] > 0 or hunkRemaining[1] > 0:
+                if line[0:1] == "-":
+                    contextline = line[1:]
+                    patchObj.addLines(natureOfChange.REMOVED, contextline)
+                    hunkRemaining[0] -= 1
+
+                elif line[0:1] == "+":
+                    contextline = line[1:]
+                    patchObj.addLines(natureOfChange.ADDED, contextline)
+                    hunkRemaining[1] -= 1
+
+                elif line[0:1] == ' ':
+                    contextline = line[1:]
+                    patchObj.addLines(natureOfChange.CONTEXT, contextline)
+                    hunkRemaining[0] -= 1
+                    hunkRemaining[1] -= 1
+
+                # It's a corrupt patch if we have too many removed or
+                # added lines for the line count in the hunk header.
+                assert( hunkRemaining[0] >= 0 and hunkRemaining[1] >= 0)
+
+                if hunkRemaining[0] == 0 and hunkRemaining[1] == 0:
+                    assert( patchObj.getFileName() != None )
+                    self.patches.append(patchObj)
+                    oldPatchObj = patchObj
+                    patchObj = None
+
+                continue
+
+            # If it's an empty line (including the last newline in the
+            # file), don't immediately start a new patch.
+            if line == "":
+                continue
 
             # This is a HACK.  In general, we should probably not be
             # modifying the file name in the patch.  In this case
@@ -389,57 +436,90 @@ class PatchFile:
             # being modified.  It also turns out that the unit tests
             # do this (not that we want to have specific code just for
             # the unit tests).
-            if line[0:6] == "+++ b/":
-                if patchObj is not None:
-                    assert( len(patchObj.getLines()) > 0)
-                    self.patches.append(patchObj)
+            if line.startswith('+++ b/'):
+                filename = line.split()[1][2:]
 
                 if patchObj is None:
-                    filename = line.split()[1][2:]
-                    patchObj = Patch(filename)
+                    patchObj = Patch()
 
-            elif line[0:3] == '+++':
-                if patchObj is not None:
-                    assert( len(patchObj.getLines()) > 0)
-                    self.patches.append(patchObj)
-
-                if patchObj is None:
-                    filename = "./" + line.split()[1]
-                    patchObj = Patch(filename)
-
-            elif line[0:3] == '---':
-                if patchObj is not None:
-                    self.patches.append(patchObj)
-                    patchObj = None
-
-            elif line[0:3] == "@@ ":
-                contextline = line[2:].split(" @@ ")[-1]
-                assert( patchObj is not None )
-
-                if len(patchObj.getLines()) != 0:
-                    filename = patchObj.getFileName()
-                    self.patches.append(patchObj)
-                    patchObj = Patch(filename)
-                    patchObj.setLinesChanged(line)
+                if patchObj.getFileName() is not None:
+                    # We don't support patches where the two file
+                    # names are different, except for patches that
+                    # either add new files (original file was
+                    # /dev/null) or delete files (new file is
+                    # /dev/null).
+                    assert( patchObj.getFileName() == filename )
                 else:
-                    patchObj.setLinesChanged(line)
+                    patchObj.setFileName(filename)
+
+            elif line.startswith('+++ /dev/null'):
+                if patchObj is None:
+                    patchObj = Patch()
+
+                patchObj._isFileRemoved = True
+                pass
+
+            elif line.startswith('+++ '):
+                filename = line.split()[1]
+
+                if patchObj is None:
+                    patchObj = Patch()
+
+                if patchObj.getFileName() is not None:
+                    assert( patchObj.getFileName() == filename )
+                else:
+                    patchObj.setFileName(filename)
+
+
+            elif line.startswith('--- a/'):
+                filename = line.split()[1][2:]
+
+                if patchObj is None:
+                    patchObj = Patch()
+
+                if patchObj.getFileName() is not None:
+                    # We don't support patches where the two file
+                    # names are different, except for patches that
+                    # either add new files (original file was
+                    # /dev/null) or delete files (new file is
+                    # /dev/null).
+                    assert( patchObj.getFileName() == filename )
+                else:
+                    patchObj.setFileName(filename)
+
+            elif line.startswith('--- /dev/null'):
+                if patchObj is None:
+                    patchObj = Patch()
+
+                patchObj._isNewFile = True
+
+            elif line.startswith('--- '):
+                filename = line.split()[1]
+
+                if patchObj is None:
+                    patchObj = Patch()
+
+                if patchObj.getFileName() is not None:
+                    assert( patchObj.getFileName() == filename )
+                else:
+                    patchObj.setFileName(filename)
+
+            elif line.startswith('@@ '):
+                contextline = line[2:].split(" @@ ")[-1]
+
+                if patchObj is None:
+                    patchObj = Patch()
+
+                if patchObj.getFileName() is None:
+                    patchObj.setFileName(oldPatchObj.getFileName())
+
+                patchObj.setLinesChanged(line)
+                hunkRemaining = [patchObj._oldLength, patchObj._newLength]
 
                 patchObj.addLines(
                     natureOfChange.CONTEXT,
                     contextline,
                 )
-
-            elif line[0:1] == "-" and patchObj is not None:
-                contextline = line[1:]
-                patchObj.addLines(natureOfChange.REMOVED, contextline)
-
-            elif line[0:1] == "+" and patchObj is not None:
-                contextline = line[1:]
-                patchObj.addLines(natureOfChange.ADDED, contextline)
-
-            elif line[0:1] == ' ' and patchObj is not None:
-                contextline = line[1:]
-                patchObj.addLines(natureOfChange.CONTEXT, contextline)
 
             else:
                 # A patch can have lots of lines in it that are added
@@ -448,4 +528,4 @@ class PatchFile:
                 # hunks.
                 pass
 
-        self.patches.append(patchObj)
+        assert(patchObj is None)

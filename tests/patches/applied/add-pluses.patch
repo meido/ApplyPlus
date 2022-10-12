@@ -1,0 +1,12 @@
+--- a/patches/pluses.c	2022-07-08 12:10:09.838919861 -0400
++++ b/patches/pluses.c	2022-07-08 12:08:21.758457580 -0400
+@@ -1,5 +1,9 @@
+ #include <stdio.h>
+ 
++/*
++++ This is a line with two plus signs at the front.
++*/
++
+ int main( int argc, char ** argv ) {
+     printf( "Hello world.\n" );
+ }

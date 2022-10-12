@@ -90,11 +90,11 @@ class TestContext(unittest.TestCase, metaclass=ContextPatchTests):
             'canApply': precheckStatus.NO_MATCH_FOUND
         },
         'test_variable_change': {
-            'message': r'^This patch can be applied\.$',
+            'message': r'recommend to not run this patch',
             'canApply': precheckStatus.NO_MATCH_FOUND
         },
         'test_variable_change_declaration': {
-            'message': r'^This patch can be applied\.$',
+            'message': r'recommend to not run this patch',
             'canApply': precheckStatus.NO_MATCH_FOUND
         },
         'test_variable_change_LHS': {

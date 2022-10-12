@@ -72,6 +72,14 @@ class TestPatches(unittest.TestCase, metaclass=PatchTests):
         'test_bad_index': {
             'result': 'skipped',
             'success': False
+        },
+        'test_binary': {
+            'result': 'skipped',
+            'success': False
+        },
+        'test_binary_2': {
+            'result': 'patch does not apply',
+            'success': False
         }
     }
 
